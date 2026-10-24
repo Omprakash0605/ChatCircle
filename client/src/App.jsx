@@ -1,16 +1,31 @@
 import React from 'react'
-import { Route, Routes } from 'react-router-dom'
-import HomePage from './pages/HomePage'
-import LoginPage from './pages/LoginPage'
-import ProfilePage from './pages/ProfilePage'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import Signup from './pages/Signup'
+import Login from './pages/Login'
+import { useAuth } from './context/AuthContext';
+import Chat from './pages/Chat';
+
+
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <p>Checking your session...</p>;
+  }
+
+  return user
+    ? children
+    : <Navigate to="/login" replace />;
+}
 
 const App = () => {
   return (
-    <div className="bg-[url('./src/assets/bgImage.svg')] bg-contain">
+    <div>
       <Routes>
-        <Route path='/' element={<HomePage />}/>
-        <Route path='/login' element={<LoginPage />} />
-        <Route path='/profile' element={<ProfilePage />} />
+        <Route path="/" element={<Navigate to="/signup" replace />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/login" element={<Login />} />
+        <Route path='/chat' element={<ProtectedRoute><Chat /></ProtectedRoute>} />
       </Routes>
     </div>
   )
