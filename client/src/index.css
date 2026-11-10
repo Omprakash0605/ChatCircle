@@ -12,8 +12,8 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: #1e293b;
-  background: #f1f5f9;
+  color: #0f172a;
+  background-color: #ffffff;
 }
 
 html,
@@ -27,7 +27,9 @@ body,
 }
 
 body {
-  overflow: hidden;
+  overflow-x: hidden;
+  background-color: #ffffff;
+  color: #0f172a;
 }
 
 button,

@@ -34,10 +34,21 @@ export function AuthProvider({ children }) {
     checkAuth();
   }, []);
 
+  const logout = async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch (error) {
+      console.error("Logout request error:", error);
+    } finally {
+      setUser(null);
+    }
+  };
+
   const value = {
     user,
     setUser,
     loading,
+    logout,
     isAuthenticated: Boolean(user),
   };
 

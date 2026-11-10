@@ -43,6 +43,8 @@ export const sendMessage = async (
     text: text.trim(),
   });
 
+  await message.populate("sender", "name avatar");
+
   conversation.lastMessage = message._id;
   await conversation.save();
 
