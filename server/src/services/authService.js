@@ -42,9 +42,12 @@ export const registerUser = async ({ name, email, password }) => {
 
   return {
     id: user._id,
+    _id: user._id,
     name: user.name,
     email: user.email,
     avatar: user.avatar,
+    about: user.about || "Hey there! I am using ChatCircle.",
+    createdAt: user.createdAt,
   };
 };
 
@@ -78,9 +81,12 @@ export const loginUser = async ({ email, password }) => {
     token,
     user: {
       id: user._id,
+      _id: user._id,
       name: user.name,
       email: user.email,
       avatar: user.avatar,
+      about: user.about || "Hey there! I am using ChatCircle.",
+      createdAt: user.createdAt,
     },
   };
 };

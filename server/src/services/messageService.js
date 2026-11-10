@@ -6,7 +6,9 @@ import Message from "../models/message.js";
 export const sendMessage = async (
   currentUserId,
   conversationId,
-  text
+  text = "",
+  mediaUrl = "",
+  mediaType = "none"
 ) => {
   if (!mongoose.isValidObjectId(conversationId)) {
     const error = new Error("Invalid conversation ID");
@@ -14,13 +16,16 @@ export const sendMessage = async (
     throw error;
   }
 
-  if (typeof text !== "string" || !text.trim()) {
+  const cleanText = typeof text === "string" ? text.trim() : "";
+  const cleanMediaUrl = typeof mediaUrl === "string" ? mediaUrl.trim() : "";
+
+  if (!cleanText && !cleanMediaUrl) {
     const error = new Error("Message cannot be empty");
     error.statusCode = 400;
     throw error;
   }
 
-  if (text.trim().length > 5000) {
+  if (cleanText.length > 5000) {
     const error = new Error("Message cannot exceed 5000 characters");
     error.statusCode = 400;
     throw error;
@@ -40,7 +45,9 @@ export const sendMessage = async (
   const message = await Message.create({
     conversation: conversationId,
     sender: currentUserId,
-    text: text.trim(),
+    text: cleanText,
+    mediaUrl: cleanMediaUrl,
+    mediaType: cleanMediaUrl ? (mediaType || "image") : "none",
   });
 
   await message.populate("sender", "name avatar");

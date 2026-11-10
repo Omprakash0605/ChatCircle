@@ -7,12 +7,14 @@ import {
 
 export const sendMessage = async (req, res) => {
   try {
-    const { conversationId, text } = req.body;
+    const { conversationId, text, mediaUrl, mediaType } = req.body;
 
     const message = await sendMessageService(
       req.userId,
       conversationId,
-      text
+      text,
+      mediaUrl,
+      mediaType
     );
 
     // Broadcast the saved message to the conversation room.

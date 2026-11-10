@@ -17,9 +17,20 @@ const messageSchema = new mongoose.Schema(
 
     text: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
       maxlength: 5000,
+    },
+
+    mediaUrl: {
+      type: String,
+      default: "",
+    },
+
+    mediaType: {
+      type: String,
+      enum: ["image", "file", "audio", "none"],
+      default: "none",
     },
   },
   {

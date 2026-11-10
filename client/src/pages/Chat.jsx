@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../api/axios";
 import socket from "../socket";
 import {
@@ -13,6 +14,9 @@ import {
   Smile,
   Paperclip,
   Send,
+  User as UserIcon,
+  X,
+  Settings,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -25,6 +29,7 @@ function Chat() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [search, setSearch] = useState("");
+  const [attachedMedia, setAttachedMedia] = useState("");
 
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +40,7 @@ function Chat() {
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const mediaInputRef = useRef(null);
 
   // Load users
   useEffect(() => {
@@ -124,6 +130,42 @@ function Chat() {
     };
   }, [conversation]);
 
+  // Listen for real-time contact profile updates (name/avatar change)
+  useEffect(() => {
+    const handleProfileUpdate = (updated) => {
+      setUsers((prev) =>
+        prev.map((u) =>
+          u._id === updated.userId
+            ? {
+                ...u,
+                name: updated.name,
+                avatar: updated.avatar,
+                about: updated.about,
+              }
+            : u
+        )
+      );
+
+      setSelectedUser((prev) => {
+        if (prev && prev._id === updated.userId) {
+          return {
+            ...prev,
+            name: updated.name,
+            avatar: updated.avatar,
+            about: updated.about,
+          };
+        }
+        return prev;
+      });
+    };
+
+    socket.on("user_profile_updated", handleProfileUpdate);
+
+    return () => {
+      socket.off("user_profile_updated", handleProfileUpdate);
+    };
+  }, []);
+
   // Open or create a conversation
   const handleSelectUser = async (person) => {
     setMobileChatOpen(true);
@@ -176,13 +218,37 @@ function Chat() {
     }
   };
 
+  // Handle image file selection for chat attachment
+  const handleMediaSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file.");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image size should be less than 5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAttachedMedia(reader.result);
+      setError("");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
   // Send a message
   const handleSendMessage = async (event) => {
     event.preventDefault();
 
     const text = newMessage.trim();
 
-    if (!text || !conversation || sending) return;
+    if ((!text && !attachedMedia) || !conversation || sending) return;
 
     setSending(true);
     setError("");
@@ -190,7 +256,9 @@ function Chat() {
     try {
       const response = await api.post("/messages", {
         conversationId: conversation._id,
-        text,
+        text: text || "",
+        mediaUrl: attachedMedia || "",
+        mediaType: attachedMedia ? "image" : "none",
       });
 
       const sentMessage =
@@ -207,6 +275,7 @@ function Chat() {
       });
 
       setNewMessage("");
+      setAttachedMedia("");
     } catch (err) {
       setError(
         err.response?.data?.message || "Unable to send message."
@@ -414,40 +483,62 @@ function Chat() {
         </div>
 
         {/* Sidebar Footer with current user profile */}
-        <div className="flex items-center justify-between border-t border-slate-100 bg-[#fafbfe] p-3.5 px-4">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <div
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${getAvatarGradient(
-                currentUser?.name || "User"
-              )}`}
-            >
-              {getInitial(currentUser?.name)}
-            </div>
+        <div className="flex items-center justify-between border-t border-slate-100 bg-[#fafbfe] p-3 px-4">
+          <Link
+            to="/profile"
+            className="group flex min-w-0 flex-1 items-center gap-2.5 rounded-2xl p-1 -m-1 transition hover:bg-slate-100/70"
+            title="Edit profile & view shared media"
+          >
+            {currentUser?.avatar ? (
+              <img
+                src={currentUser.avatar}
+                alt={currentUser.name}
+                className="h-9 w-9 shrink-0 rounded-xl object-cover shadow-2xs"
+              />
+            ) : (
+              <div
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${getAvatarGradient(
+                  currentUser?.name || "User"
+                )}`}
+              >
+                {getInitial(currentUser?.name)}
+              </div>
+            )}
             <div className="min-w-0">
-              <p className="truncate text-xs font-bold text-slate-800">
+              <p className="truncate text-xs font-bold text-slate-800 group-hover:text-[#6067f5] transition">
                 {currentUser?.name || "My Account"}
               </p>
               <p className="truncate text-[11px] text-slate-400">
                 {currentUser?.email}
               </p>
             </div>
-          </div>
+          </Link>
 
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                socket.disconnect();
-                await logout();
-              } catch (e) {
-                console.error("Logout error:", e);
-              }
-            }}
-            title="Sign Out"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
-          >
-            <LogOut size={16} />
-          </button>
+          <div className="flex items-center gap-1 shrink-0 ml-2">
+            <Link
+              to="/profile"
+              title="Profile & Settings"
+              className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition hover:bg-[#edeef9] hover:text-[#6067f5]"
+            >
+              <UserIcon size={16} />
+            </Link>
+
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  socket.disconnect();
+                  await logout();
+                } catch (e) {
+                  console.error("Logout error:", e);
+                }
+              }}
+              title="Sign Out"
+              className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -603,10 +694,23 @@ function Chat() {
                           </p>
                         )}
 
+                        {/* Shared Media Image if present */}
+                        {message.mediaUrl && (
+                          <div className="mb-2 overflow-hidden rounded-2xl">
+                            <img
+                              src={message.mediaUrl}
+                              alt="Attachment"
+                              className="max-h-64 max-w-full rounded-2xl object-cover"
+                            />
+                          </div>
+                        )}
+
                         {/* Text */}
-                        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-                          {message.text}
-                        </p>
+                        {message.text && (
+                          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                            {message.text}
+                          </p>
+                        )}
 
                         {/* Bottom Metadata: views + time */}
                         <div
@@ -660,6 +764,53 @@ function Chat() {
               </div>
             )}
 
+            {/* Hidden Media Input */}
+            <input
+              ref={mediaInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleMediaSelect}
+              className="hidden"
+            />
+
+            {/* Attachment preview banner */}
+            {attachedMedia && (
+              <div className="flex items-center justify-between border-t border-slate-100 bg-[#fafbfe] px-5 py-2.5 md:px-8">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <img
+                      src={attachedMedia}
+                      alt="Attachment Preview"
+                      className="h-12 w-12 rounded-xl object-cover border border-slate-200 shadow-2xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setAttachedMedia("")}
+                      className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-slate-800 text-white hover:bg-rose-600 transition"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">
+                      Photo attached
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      Ready to send with your message
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setAttachedMedia("")}
+                  className="text-xs font-semibold text-rose-600 hover:underline"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+
             {/* Bottom Message Composer */}
             <form
               onSubmit={handleSendMessage}
@@ -670,7 +821,7 @@ function Chat() {
                   type="text"
                   value={newMessage}
                   onChange={(event) => setNewMessage(event.target.value)}
-                  placeholder="Write a message..."
+                  placeholder={attachedMedia ? "Add a caption (optional)..." : "Write a message..."}
                   aria-label="Write a message"
                   maxLength={5000}
                   disabled={sending || conversationLoading || !conversation}
@@ -679,7 +830,9 @@ function Chat() {
 
                 <button
                   type="button"
-                  aria-label="Attach file"
+                  onClick={() => mediaInputRef.current?.click()}
+                  aria-label="Attach photo"
+                  title="Attach photo"
                   className="text-[#7d859d] hover:text-[#6067f5] transition p-1"
                 >
                   <Paperclip size={18} />
@@ -695,7 +848,11 @@ function Chat() {
 
               <button
                 type="submit"
-                disabled={sending || !newMessage.trim() || !conversation}
+                disabled={
+                  sending ||
+                  (!newMessage.trim() && !attachedMedia) ||
+                  !conversation
+                }
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#6067f5] text-white shadow-md shadow-indigo-500/20 transition hover:bg-[#5259e8] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Send size={18} />

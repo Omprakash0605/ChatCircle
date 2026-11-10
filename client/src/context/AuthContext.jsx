@@ -44,9 +44,14 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const updateUser = (updatedData) => {
+    setUser((prev) => (prev ? { ...prev, ...updatedData } : updatedData));
+  };
+
   const value = {
     user,
     setUser,
+    updateUser,
     loading,
     logout,
     isAuthenticated: Boolean(user),
